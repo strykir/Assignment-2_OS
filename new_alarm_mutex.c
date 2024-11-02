@@ -139,9 +139,14 @@ int main(int argc, char *argv[])
          * separated from the seconds by whitespace.
          */
 
-        if (sscanf(line, "%64[^\n](%d):%5[ T0-9] %64[^\n]", keyword, alarm->id, alarm->type, alarm->message) < 10)
+        if (sscanf(line, "%[^(](%d): %s %d %64[^\n]", keyword, &alarm->id, &alarm->type, &alarm->seconds, alarm->message) < 10)
         {
-            printf("%s(%d): %s %s", keyword, alarm->id, alarm->type, alarm->message);
+            printf("%s(%d): %s %s\n\n", keyword, alarm->id, alarm->type, alarm->message);
+            printf("%s\n", keyword);
+            printf("%d\n", alarm->id);
+            printf("%s\n", alarm->type);
+            printf ("[\"%s\"] \n", alarm->message);
+
             fprintf(stderr, "Bad command\n");
             free(alarm);
         }
