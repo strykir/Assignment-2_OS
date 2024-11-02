@@ -138,10 +138,10 @@ int main(int argc, char *argv[])
          * (%64[^\n]), consisting of up to 64 characters
          * separated from the seconds by whitespace.
          */
-        sscanf(line, "%64[^\n];%d", keyword, alarm->id, alarm->message);
 
-        if (sscanf(line, "%d %64[^\n]", alarm->seconds, alarm->type, alarm->message) < 2)
+        if (sscanf(line, "%64[^\n](%d):%5[ T0-9] %64[^\n]", keyword, alarm->id, alarm->type, alarm->message) < 10)
         {
+            printf("%s(%d): %s %s", keyword, alarm->id, alarm->type, alarm->message);
             fprintf(stderr, "Bad command\n");
             free(alarm);
         }
