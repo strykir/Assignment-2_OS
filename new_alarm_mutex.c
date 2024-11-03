@@ -11,6 +11,7 @@
  * thread can lock the mutex to add new work to the list.
  */
 #include <pthread.h>
+#include <stdatomic.h>
 #include <time.h>
 #include "errors.h"
 
@@ -167,17 +168,22 @@ void linked_list(alarm_t *alarm, unsigned long main_thread, alarm_t *next, alarm
     }
 }
 
-int input_validator(char *keyword, int user_arg ) {
-    if (//if the keyword & argument format are incorrect, then print "Bad command" and free memory
-                !(strcmp(keyword, "Cancel_Alarm") == 0 && user_arg == 2)
-            &&  !(strcmp(keyword, "View_Alarm") == 0 && (user_arg == 1))
-            &&  !((strcmp(keyword, "Start_Alarm") == 0) && (user_arg == 5))
-            &&  !((strcmp(keyword, "Change_Alarm") == 0) && (user_arg == 5)))
-    {
-        return -1;
+int input_validator(const char *keyword, int user_arg ) {
+    //if input is valid, return flag that corresponds to the keyword
+    if((strcmp(keyword, "Cancel_Alarm") == 0) && (user_arg == 2)) {
+        return 1;
     }
-    return 0;
-
+    if((strcmp(keyword, "View_Alarm") == 0) && (user_arg == 1)) {
+        return 2;
+    }
+    if((strcmp(keyword, "Start_Alarm") == 0) && (user_arg == 5)) {
+        return 3;
+    }
+    if((strcmp(keyword, "Change_Alarm") == 0) && (user_arg == 5)) {
+        return 4;
+    }
+    //otherwise we return 1
+    return -1;
 }
 
 int main(int argc, char *argv[])
@@ -187,7 +193,6 @@ int main(int argc, char *argv[])
     int user_arg;
     unsigned long main_thread = pthread_self();
     int flag_input;
-
     //given
     int status;
     char line[128];
@@ -220,13 +225,13 @@ int main(int argc, char *argv[])
         //user_arg has the number of arguments passed from stdin
         user_arg = sscanf(line, "%[^(\n](%d): T%d %d %128[^\n]", keyword, &alarm->id, &alarm->type, &alarm->seconds, alarm->message);
         flag_input = input_validator(keyword, user_arg);
-
-        if (flag_input != 0) {
+        if (flag_input == -1) {
             fprintf(stderr, "Bad command\n");
             free(alarm);
         }
-        else
-        {
+
+        else {
+            printf("flag: %d\n", flag_input);
             linked_list(alarm, main_thread, next, last, &status);
         }
     }
