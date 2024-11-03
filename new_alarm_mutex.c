@@ -11,7 +11,6 @@
  * thread can lock the mutex to add new work to the list.
  */
 #include <pthread.h>
-#include <stdatomic.h>
 #include <time.h>
 #include "errors.h"
 
@@ -27,7 +26,7 @@ typedef struct alarm_tag
     struct alarm_tag *link;
     int id;
     int seconds;
-    char type[2];
+    char type[3];
     time_t time; /* seconds from EPOCH */
     char message[128];
 } alarm_t;
@@ -44,7 +43,6 @@ void *alarm_thread(void *arg)
     int sleep_time;
     time_t now;
     int status;
-    unsigned long main_thread = *(unsigned long*)arg;
 
     /*
      * Loop forever, processing commands. The alarm thread will
@@ -113,7 +111,51 @@ void *alarm_thread(void *arg)
     }
 }
 
-void linked_list(alarm_t *alarm, unsigned long main_thread, alarm_t *next, alarm_t **last, int *status) {
+void linked_list_change_alarm(alarm_t *alarm, alarm_t *next, alarm_t **last, int *status) {
+    last = &alarm_list;
+    next = *last;
+
+    // Lock the mutex for thread safety
+    *status = pthread_mutex_lock(&alarm_mutex);
+    if (*status != 0) {
+        err_abort(*status, "Lock mutex");
+    }
+
+    // Set the alarm time based on the current time and the specified seconds
+    alarm->time = time(NULL) + alarm->seconds;
+
+    // Insert the new alarm in the list sorted by expiration time
+    while (next != NULL) {
+        if (next->time >= alarm->time) {
+            alarm->link = next;
+            *last = alarm;
+            break;
+        }
+        last = &(next->link);
+        next = next->link;
+    }
+
+    // If we reached the end of the list, add the alarm at the end
+    if (next == NULL) {
+        *last = alarm;
+        alarm->link = NULL;
+    }
+
+#ifdef DEBUG
+    printf("[list: ");
+    for (next = alarm_list; next != NULL; next = next->link)
+        printf("%d(%d)[\"%s\"] ", next->time, next->time - time(NULL), next->message);
+    printf("]\n");
+#endif
+
+    // Unlock the mutex
+    *status = pthread_mutex_unlock(&alarm_mutex);
+    if (*status != 0) {
+        err_abort(*status, "Unlock mutex");
+    }
+}
+
+void linked_list_add_alarm(alarm_t *alarm, unsigned long main_thread, alarm_t *next, alarm_t **last, int *status) {
     last = &alarm_list;
     next = *last;
 
@@ -221,9 +263,11 @@ int main(int argc, char *argv[])
         *If a Message exceeds 128 characters, it will be truncated to 128 characters.
          */
 
-        /*Input validator*/
-        //user_arg has the number of arguments passed from stdin
-        user_arg = sscanf(line, "%[^(\n](%d): T%d %d %128[^\n]", keyword, &alarm->id, &alarm->type, &alarm->seconds, alarm->message);
+        /*Input validator:
+        *user_arg has the number of arguments passed from stdin
+        *flag_input has 1 of 5 possible flags assigned to it
+        */
+        user_arg = sscanf(line, "%[^(\n](%d): T%s %d %128[^\n]", keyword, &alarm->id, alarm->type, &alarm->seconds, alarm->message);
         flag_input = input_validator(keyword, user_arg);
         if (flag_input == -1) {
             fprintf(stderr, "Bad command\n");
@@ -231,8 +275,13 @@ int main(int argc, char *argv[])
         }
 
         else {
-            printf("flag: %d\n", flag_input);
-            linked_list(alarm, main_thread, next, last, &status);
+            //if user entered Start_Alarm
+            if(flag_input == 3) {
+                linked_list_add_alarm(alarm, main_thread, next, last, &status);
+            }
+            if(flag_input == 4) {
+                linked_list_change_alarm(alarm, next, last, &status);
+            }
         }
     }
 }
