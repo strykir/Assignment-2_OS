@@ -28,7 +28,7 @@ typedef struct alarm_tag
     int seconds;
     char type[2];
     time_t time; /* seconds from EPOCH */
-    char message[64];
+    char message[128];
 } alarm_t;
 
 pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -43,6 +43,7 @@ void *alarm_thread(void *arg)
     int sleep_time;
     time_t now;
     int status;
+    unsigned long main_thread = *(unsigned long*)arg;
 
     /*
      * Loop forever, processing commands. The alarm thread will
@@ -88,10 +89,14 @@ void *alarm_thread(void *arg)
          * if there's no input.
          */
         status = pthread_mutex_unlock(&alarm_mutex);
+        /*if display flag is zero, then the alarm is fresh and we will dispaly it*/
+
         if (status != 0)
             err_abort(status, "Unlock mutex");
-        if (sleep_time > 0)
+
+        if (sleep_time > 0) {
             sleep(sleep_time);
+        }
         else
             sched_yield();
 
@@ -112,6 +117,7 @@ int main(int argc, char *argv[])
     //new
     char keyword[128];
     int user_arg;
+    unsigned long main_thread = pthread_self();
 
     //given
     int status;
@@ -120,7 +126,7 @@ int main(int argc, char *argv[])
     pthread_t thread;
 
     status = pthread_create(
-        &thread, NULL, alarm_thread, NULL);
+        &thread, NULL, alarm_thread, &main_thread);
     if (status != 0)
         err_abort(status, "Create alarm thread");
     while (1)
@@ -135,25 +141,17 @@ int main(int argc, char *argv[])
             errno_abort("Allocate alarm");
 
         /*
-         * Parse input line into seconds (%d) and a message
-         * (%64[^\n]), consisting of up to 64 characters
-         * separated from the seconds by whitespace.
+        *We will first check whether the format of the alarm request
+        *is consistent with either Cancel_Alar, View_Alarm, Start_Alarm, or Change_Alarm;
+        *otherwise the alarm request will be rejected with an error message.
+        *If a Message exceeds 128 characters, it will be truncated to 128 characters.
          */
 
-        /*
-        printf("%s(%d): %s %s\n\n", keyword, alarm->id, alarm->type, alarm->message);
-        printf("%s\n", keyword);
-        printf("%d\n", alarm->id);
-        printf("%s\n", alarm->type);
-        printf ("[\"%s\"] \n", alarm->message);*/
-
-
         /*Input validator*/
-        user_arg = sscanf(line, "%[^(\n](%d): T%d %d %64[^\n]", keyword, &alarm->id, &alarm->type, &alarm->seconds, alarm->message);
-        printf("%d", user_arg);
-        printf("%s\n", keyword);
+        //user_arg has the number of arguments passed from stdin
+        user_arg = sscanf(line, "%[^(\n](%d): T%d %d %128[^\n]", keyword, &alarm->id, &alarm->type, &alarm->seconds, alarm->message);
 
-        if (
+        if (//if the keyword & argument format are incorrect, then print "Bad command" and free memory
                 !(strcmp(keyword, "Cancel_Alarm") == 0 && user_arg == 2)
             &&  !(strcmp(keyword, "View_Alarm") == 0 && (user_arg == 1))
             &&  !((strcmp(keyword, "Start_Alarm") == 0) && (user_arg == 5))
@@ -162,9 +160,10 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Bad command\n");
             free(alarm);
         }
+
+
         else
         {
-
             status = pthread_mutex_lock(&alarm_mutex);
             if (status != 0)
                 err_abort(status, "Lock mutex");
@@ -206,6 +205,14 @@ int main(int argc, char *argv[])
                        next->time - time(NULL), next->message);
             printf("]\n");
 #endif
+            /*A.3.2.1 - For each valid Start_Alarm request received, the main thread will insert the
+            corresponding alarm with the specified Alarm_ID into the alarm list, in which all the
+            alarms are placed in the order of their Alarm_IDs. Then the main thread will print:
+            “Alarm( <alarm_id>) Inserted by Main Thread (<thread-id>) Into Alarm List at
+            <insert_time>: <time message>”.
+            */
+
+            printf("Alarm(%d) Inserted by Main Thread (%lu) Into Alarm List at %lu: %s\n", alarm->id, main_thread, (unsigned long)time(NULL), alarm->message);
             status = pthread_mutex_unlock(&alarm_mutex);
             if (status != 0)
                 err_abort(status, "Unlock mutex");
