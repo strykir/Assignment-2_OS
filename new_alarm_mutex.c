@@ -112,12 +112,81 @@ void *alarm_thread(void *arg)
     }
 }
 
+void linked_list(alarm_t *alarm, unsigned long main_thread, alarm_t *next, alarm_t **last, int *status) {
+    last = &alarm_list;
+    next = *last;
+
+    // Lock the mutex for thread safety
+    *status = pthread_mutex_lock(&alarm_mutex);
+    if (*status != 0) {
+        err_abort(*status, "Lock mutex");
+    }
+
+    // Set the alarm time based on the current time and the specified seconds
+    alarm->time = time(NULL) + alarm->seconds;
+
+    // Insert the new alarm in the list sorted by expiration time
+    while (next != NULL) {
+        if (next->time >= alarm->time) {
+            alarm->link = next;
+            *last = alarm;
+            break;
+        }
+        last = &(next->link);
+        next = next->link;
+    }
+
+    // If we reached the end of the list, add the alarm at the end
+    if (next == NULL) {
+        *last = alarm;
+        alarm->link = NULL;
+    }
+
+#ifdef DEBUG
+    printf("[list: ");
+    for (next = alarm_list; next != NULL; next = next->link)
+        printf("%d(%d)[\"%s\"] ", next->time, next->time - time(NULL), next->message);
+    printf("]\n");
+#endif
+
+    /*A.3.2.1 - For each valid Start_Alarm request received, the main thread will insert the
+            corresponding alarm with the specified Alarm_ID into the alarm list, in which all the
+            alarms are placed in the order of their Alarm_IDs. Then the main thread will print:
+            “Alarm( <alarm_id>) Inserted by Main Thread (<thread-id>) Into Alarm List at
+            <insert_time>: <time message>”.
+            */
+
+    // Print insertion message for each valid Start_Alarm request
+    printf("Alarm(%d) Inserted by Main Thread (%lu) Into Alarm List at %lu: %s\n",
+           alarm->id, main_thread, (unsigned long)time(NULL), alarm->message);
+
+    // Unlock the mutex
+    *status = pthread_mutex_unlock(&alarm_mutex);
+    if (*status != 0) {
+        err_abort(*status, "Unlock mutex");
+    }
+}
+
+int input_validator(char *keyword, int user_arg ) {
+    if (//if the keyword & argument format are incorrect, then print "Bad command" and free memory
+                !(strcmp(keyword, "Cancel_Alarm") == 0 && user_arg == 2)
+            &&  !(strcmp(keyword, "View_Alarm") == 0 && (user_arg == 1))
+            &&  !((strcmp(keyword, "Start_Alarm") == 0) && (user_arg == 5))
+            &&  !((strcmp(keyword, "Change_Alarm") == 0) && (user_arg == 5)))
+    {
+        return -1;
+    }
+    return 0;
+
+}
+
 int main(int argc, char *argv[])
 {
     //new
     char keyword[128];
     int user_arg;
     unsigned long main_thread = pthread_self();
+    int flag_input;
 
     //given
     int status;
@@ -150,72 +219,15 @@ int main(int argc, char *argv[])
         /*Input validator*/
         //user_arg has the number of arguments passed from stdin
         user_arg = sscanf(line, "%[^(\n](%d): T%d %d %128[^\n]", keyword, &alarm->id, &alarm->type, &alarm->seconds, alarm->message);
+        flag_input = input_validator(keyword, user_arg);
 
-        if (//if the keyword & argument format are incorrect, then print "Bad command" and free memory
-                !(strcmp(keyword, "Cancel_Alarm") == 0 && user_arg == 2)
-            &&  !(strcmp(keyword, "View_Alarm") == 0 && (user_arg == 1))
-            &&  !((strcmp(keyword, "Start_Alarm") == 0) && (user_arg == 5))
-            &&  !((strcmp(keyword, "Change_Alarm") == 0) && (user_arg == 5)))
-        {
+        if (flag_input != 0) {
             fprintf(stderr, "Bad command\n");
             free(alarm);
         }
-
-
         else
         {
-            status = pthread_mutex_lock(&alarm_mutex);
-            if (status != 0)
-                err_abort(status, "Lock mutex");
-            alarm->time = time(NULL) + alarm->seconds;
-
-            /*
-             * Insert the new alarm into the list of alarms,
-             * sorted by expiration time.
-             */
-            last = &alarm_list; //pointer to the entire list
-            next = *last; //dereferences to the pointer to the first node in the list
-            while (next != NULL)
-            {
-                if (next->time >= alarm->time)
-                {
-                    alarm->link = next;
-                    *last = alarm;
-                    break;
-                }
-                //traverse through the list if alarm->time > next->time
-                last = &(next->link);
-                next = next->link;
-            }
-            /*
-             * If we reached the end of the list, insert the new
-             * alarm there. ("next" is NULL, and "last" points
-             * to the link field of the last item, or to the
-             * list header).
-             */
-            if (next == NULL)
-            {
-                *last = alarm;
-                alarm->link = NULL;
-            }
-#ifdef DEBUG
-            printf("[list: ");
-            for (next = alarm_list; next != NULL; next = next->link)
-                printf("%d(%d)[\"%s\"] ", next->time,
-                       next->time - time(NULL), next->message);
-            printf("]\n");
-#endif
-            /*A.3.2.1 - For each valid Start_Alarm request received, the main thread will insert the
-            corresponding alarm with the specified Alarm_ID into the alarm list, in which all the
-            alarms are placed in the order of their Alarm_IDs. Then the main thread will print:
-            “Alarm( <alarm_id>) Inserted by Main Thread (<thread-id>) Into Alarm List at
-            <insert_time>: <time message>”.
-            */
-
-            printf("Alarm(%d) Inserted by Main Thread (%lu) Into Alarm List at %lu: %s\n", alarm->id, main_thread, (unsigned long)time(NULL), alarm->message);
-            status = pthread_mutex_unlock(&alarm_mutex);
-            if (status != 0)
-                err_abort(status, "Unlock mutex");
+            linked_list(alarm, main_thread, next, last, &status);
         }
     }
 }
