@@ -147,35 +147,24 @@ int main(int argc, char *argv[])
         printf("%s\n", alarm->type);
         printf ("[\"%s\"] \n", alarm->message);*/
 
+
+        /*Input validator*/
         user_arg = sscanf(line, "%[^(\n](%d): T%d %d %64[^\n]", keyword, &alarm->id, &alarm->type, &alarm->seconds, alarm->message);
         printf("%d", user_arg);
         printf("%s\n", keyword);
-        if ((strcmp(keyword, "Change_Alarm") == 0) && (user_arg == 5)) {
-            /*
+
+        if (
+                !(strcmp(keyword, "Cancel_Alarm") == 0 && user_arg == 2)
+            &&  !(strcmp(keyword, "View_Alarm") == 0 && (user_arg == 1))
+            &&  !((strcmp(keyword, "Start_Alarm") == 0) && (user_arg == 5))
+            &&  !((strcmp(keyword, "Change_Alarm") == 0) && (user_arg == 5)))
+        {
             fprintf(stderr, "Bad command\n");
             free(alarm);
-            */
-            printf("test_1");
         }
-
-        if (strcmp(keyword, "Cancel_Alarm") == 0 && user_arg == 2) {
-            printf("test_2");
-        }
-
-        if (strcmp(keyword, "View_Alarm") == 0 && (user_arg == 1)) {
-            printf("test_3");
-        }
-
-        if ((strcmp(keyword, "Start_Alarm") == 0) && (user_arg == 5)) {
-            printf("test_4");
-        }
-
-
-
-
-
         else
         {
+
             status = pthread_mutex_lock(&alarm_mutex);
             if (status != 0)
                 err_abort(status, "Lock mutex");
