@@ -144,7 +144,7 @@ void *display_thread (void *arg){
             }  
 
             if(thread_data->display_alarms[0] != NULL && thread_data->display_alarms[0]->time < time(NULL)){
-            printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %ld: %s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
+            printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %ld: T%s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
             free(thread_data->display_alarms[0]);
             thread_data->display_alarms[0] = NULL;
             num_of_alarms = num_of_alarms -1 ;
@@ -152,7 +152,7 @@ void *display_thread (void *arg){
 
             if(thread_data->display_alarms[1] != NULL && thread_data->display_alarms[1]->time < time(NULL)){
             //remove alarm from num_of_alarms           
-            printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %ld: %s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
+            printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %ld: T%s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
             free(thread_data->display_alarms[1]);
             thread_data->display_alarms[1] = NULL;
             num_of_alarms = num_of_alarms -1 ;
@@ -169,7 +169,7 @@ void *display_thread (void *arg){
        */
         time(&current_0);
         if (difftime(current_0, start_0) >= 5.0){
-         printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %ld: %s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
+         printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %ld: T%s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
          start_0 = current_0;
         }
    }
@@ -207,7 +207,7 @@ void *display_thread (void *arg){
        */
         time(&current_1);
         if (difftime(current_1, start_1) >= 5.0){
-         printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %ld: %s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
+         printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %ld: T%s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
          start_1 = current_1;
         }
     }
@@ -429,7 +429,7 @@ int main (int argc, char *argv[])
          * (%64[^\n]), consisting of up to 64 characters
          * separated from the seconds by whitespace.
          */
-        user_arg = sscanf(line, "%[^(\n](%d): T%s %d %128[^\n]", keyword, &alarm->id, &alarm->type, &alarm->seconds, alarm->message);
+        user_arg = sscanf(line, "%[^(\n](%d): T%128[^ ] %d %128[^\n]", keyword, &alarm->id, &alarm->type, &alarm->seconds, alarm->message);
         flag_input = input_validator(keyword, user_arg);
 
         if (flag_input == -1) {
