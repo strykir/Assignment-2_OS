@@ -155,18 +155,17 @@ void linked_list_change_alarm(alarm_t *alarm, alarm_t *next, alarm_t **last, int
     }
 }
 
-void linked_list_add_alarm(alarm_t *alarm, unsigned long main_thread, alarm_t *next, alarm_t **last, int *status) {
-    last = &alarm_list;
-    next = *last;
+void linked_list_add_alarm(alarm_t *alarm, unsigned long main_thread, alarm_t *next, alarm_t **last, int status, int flag_input) {
 
-    // Lock the mutex for thread safety
-    *status = pthread_mutex_lock(&alarm_mutex);
-    if (*status != 0) {
-        err_abort(*status, "Lock mutex");
+    status = pthread_mutex_lock(&alarm_mutex);
+    if (status != 0) {
+        err_abort(status, "Lock mutex");
     }
 
     // Set the alarm time based on the current time and the specified seconds
     alarm->time = time(NULL) + alarm->seconds;
+    last = &alarm_list;
+    next = *last;
 
     // Insert the new alarm in the list sorted by expiration time
     while (next != NULL) {
@@ -175,11 +174,16 @@ void linked_list_add_alarm(alarm_t *alarm, unsigned long main_thread, alarm_t *n
             *last = alarm;
             break;
         }
-        last = &(next->link);
+        last = &next->link;
         next = next->link;
     }
 
-    // If we reached the end of the list, add the alarm at the end
+    /*
+    * If we reached the end of the list, insert the new
+    * alarm there. ("next" is NULL, and "last" points
+    * to the link field of the last item, or to the
+    * list header).
+    */
     if (next == NULL) {
         *last = alarm;
         alarm->link = NULL;
@@ -204,9 +208,9 @@ void linked_list_add_alarm(alarm_t *alarm, unsigned long main_thread, alarm_t *n
            alarm->id, main_thread, (unsigned long)time(NULL), alarm->message);
 
     // Unlock the mutex
-    *status = pthread_mutex_unlock(&alarm_mutex);
-    if (*status != 0) {
-        err_abort(*status, "Unlock mutex");
+    status = pthread_mutex_unlock(&alarm_mutex);
+    if (status != 0) {
+        err_abort(status, "Unlock mutex");
     }
 }
 
@@ -228,8 +232,7 @@ int input_validator(const char *keyword, int user_arg ) {
     return -1;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     //new
     char keyword[128];
     int user_arg;
@@ -241,12 +244,11 @@ int main(int argc, char *argv[])
     alarm_t *alarm, **last, *next;
     pthread_t thread;
 
-    status = pthread_create(
-        &thread, NULL, alarm_thread, &main_thread);
+    status = pthread_create(&thread, NULL, alarm_thread, &main_thread);
+
     if (status != 0)
         err_abort(status, "Create alarm thread");
-    while (1)
-    {
+    while (1) {
         printf("alarm> ");
         if (fgets(line, sizeof(line), stdin) == NULL) //user input is ctrl + D
             exit(0);
@@ -275,13 +277,9 @@ int main(int argc, char *argv[])
         }
 
         else {
-            //if user entered Start_Alarm
-            if(flag_input == 3) {
-                linked_list_add_alarm(alarm, main_thread, next, last, &status);
-            }
-            if(flag_input == 4) {
-                linked_list_change_alarm(alarm, next, last, &status);
-            }
+            linked_list_add_alarm(alarm, main_thread, next, last, &status, flag_input);
         }
     }
 }
+
+
