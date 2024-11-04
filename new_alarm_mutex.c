@@ -389,7 +389,7 @@ int main (int argc, char *argv[])
     fd_set readfds;
     struct timeval timeout;
     int returned_value;
-    int done_removals = 0;
+    int removed_alarms = 0;
     
     
     status = pthread_create (
@@ -407,7 +407,7 @@ int main (int argc, char *argv[])
         timeout.tv_sec = 0;
         timeout.tv_usec = 500000;
         expired = 0;
-        done_removals = 0;
+        removed_alarms = 0;
         
         returned_value = select(STDIN_FILENO+1, &readfds, NULL, NULL, &timeout);
         
@@ -673,25 +673,31 @@ int main (int argc, char *argv[])
 
             while (next != NULL) {
 
+             
+
+               //remove any expired alarms
                 if (next->time <= time(NULL)) {
-
-                    
-                    
-                    (*last) = next->link;
+                     
+                    removed_alarms = 1;
                     printf("Alarm(%d): Alarm Expired at <%ld>: Alarm Removed From Alarm List\n", next->id, time(NULL));
-                    //signal alarm_expired and printed
-                    expired = 1;
-                   status = pthread_cond_signal(&alarm_expired); 
-                   if (status != 0)
-                   err_abort (status, "Signal cond");
+                    *last = next->link;        
+                    next = next->link;
+                    last = &next->link;
+                    
 
-                   
-                    //free(next);
-                    break;
                 }
-
+                else {
                 last = &next->link;
+                
                 next = next->link;
+                }
+            }
+             
+            if(removed_alarms == 1){
+                    expired = 1;
+                    status = pthread_cond_signal(&alarm_expired); 
+                    if (status != 0)
+                    err_abort (status, "Signal cond");
             }
 
             status = pthread_mutex_unlock (&alarm_expiration_mutex);
