@@ -1,7 +1,7 @@
 /*
  * new_alarm_mutex.c
  *
- * This is an enhancement to the alarm_thread.c program, which
+ * This is an enhancement to the alarm_mutex.c program, which
  * created an "alarm thread" for each alarm command. This new
  * version uses a single alarm thread, which reads the next
  * entry in a list. The main thread places new requests onto the
@@ -30,6 +30,7 @@ typedef struct alarm_tag {
     char                message[64];
     char                req[13];
     int                 cancelled;
+
 } alarm_t;
 
 //So alarm_thread can look for display threads, link display threads together as nodes in a list
@@ -40,6 +41,7 @@ typedef struct display_thread_node{
 
     int num_of_alarms;
     int type;
+    int end_of_life;
     pthread_t display_thread;
     struct alarm_tag *display_alarms[2]; //list of display alarms
     struct display_t *link; //link to next display thread in list
@@ -56,9 +58,7 @@ display_t *display_threads = NULL;
 time_t current_alarm = 0;
 alarm_t *new_alarm = NULL;
 
-void *printer_thread (void *arg){
-  
-}
+
 
 //if you lock alarm_mutex...then we in deadlock
 void *display_thread (void *arg){
@@ -67,6 +67,7 @@ void *display_thread (void *arg){
   int type;  
   int* num_of_alarms = malloc(sizeof(int));
   int status;
+  
   time_t current_0, start_0, current_1, start_1; 
   display_t* thread_data = (display_t*)arg;
   
@@ -94,7 +95,8 @@ void *display_thread (void *arg){
     */
      
     if(thread_data->display_alarms[0] == NULL && thread_data->display_alarms[1] == NULL){
-      printf("Display Thread Terminated (%d) at %ld \n”.", pthread_self(), time(NULL));
+      printf("Display Thread Terminated (%d) at %ld \n", pthread_self(), time(NULL));
+      thread_data->end_of_life = 1;
     return NULL;
     }
    
@@ -104,7 +106,7 @@ void *display_thread (void *arg){
        */ 
      
       if(thread_data->display_alarms[0] != NULL && thread_data->display_alarms[0]->type != thread_data->type){ 
-        printf("Alarm(%d) Changed Type; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n”.", thread_data->display_alarms[0]->id, pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
+        printf("Alarm(%d) Changed Type; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n", thread_data->display_alarms[0]->id, pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
         thread_data->display_alarms[0] = NULL;
         num_of_alarms = num_of_alarms -1 ;
       }  
@@ -115,7 +117,7 @@ void *display_thread (void *arg){
       */
 
       if(thread_data->display_alarms[0] != NULL && thread_data->display_alarms[0]->cancelled == 1){
-        printf("Alarm(%d) Cancelled; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n”.", thread_data->display_alarms[0]->id, pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
+        printf("Alarm(%d) Cancelled; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n", thread_data->display_alarms[0]->id, pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
         free(thread_data->display_alarms[0]);
         thread_data->display_alarms[0] = NULL;
         num_of_alarms = num_of_alarms -1 ;
@@ -127,7 +129,7 @@ void *display_thread (void *arg){
       */
      if(thread_data->display_alarms[0] != NULL && thread_data->display_alarms[0]->time < time(NULL)){
             //remove alarm from num_of_alarms           
-            printf("Alarm(%d) Expired; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n”.", thread_data->display_alarms[0]->id, pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
+            printf("Alarm(%d) Expired; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n", thread_data->display_alarms[0]->id, pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
             thread_data->display_alarms[0] = NULL;
             num_of_alarms = num_of_alarms -1 ;
 
@@ -141,7 +143,7 @@ void *display_thread (void *arg){
        * alarm as follows:
        */
         time(&current_0);
-        if (difftime(current_0, start_0) >= 5.0){
+        if (difftime(current_0, start_0) >= 90.0){
          printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%d) at %ld: %d %d %s \n", thread_data->display_alarms[0]->id, pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
          start_0 = current_0;
         }
@@ -152,7 +154,7 @@ void *display_thread (void *arg){
        * alarm. Then the display thread will print:
        */ 
       if(thread_data->display_alarms[1] != NULL && thread_data->display_alarms[1]->type != thread_data->type){
-        printf("Alarm(%d) Changed Type; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n”.", thread_data->display_alarms[1]->id, pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
+        printf("Alarm(%d) Changed Type; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n", thread_data->display_alarms[1]->id, pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
         thread_data->display_alarms[1] = NULL;
         num_of_alarms = num_of_alarms -1 ;
       }  
@@ -163,7 +165,7 @@ void *display_thread (void *arg){
       */
 
       if(thread_data->display_alarms[1] != NULL && thread_data->display_alarms[0]->cancelled == 1){
-        printf("Alarm(%d) Cancelled; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n”.", thread_data->display_alarms[1]->id, pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
+        printf("Alarm(%d) Cancelled; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n", thread_data->display_alarms[1]->id, pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
         free(thread_data->display_alarms[1]);
         thread_data->display_alarms[1] = NULL;
         num_of_alarms = num_of_alarms -1 ;
@@ -175,7 +177,7 @@ void *display_thread (void *arg){
       */
      if(thread_data->display_alarms[1] != NULL && thread_data->display_alarms[1]->time < time(NULL)){
             //remove alarm from num_of_alarms           
-            printf("Alarm(%d) Expired; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n”.", thread_data->display_alarms[1]->id, pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
+            printf("Alarm(%d) Expired; Display Thread (%d) Stopped Printing Alarm Message at %ld: %d %d %s \n", thread_data->display_alarms[1]->id, pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
             thread_data->display_alarms[1] = NULL;
             num_of_alarms = num_of_alarms -1 ;
 
@@ -189,9 +191,9 @@ void *display_thread (void *arg){
        * alarm as follows:
        */
         time(&current_1);
-        if (difftime(current_1, start_1) >= 5.0){
-         printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%d) at %ld: %d %d %s \n", thread_data->display_alarms[0]->id, pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
-         start_0 = current_0;
+        if (difftime(current_1, start_1) >= 90.0){
+         printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%d) at %ld: %d %d %s \n", thread_data->display_alarms[1]->id, pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
+         start_1 = current_1;
         }
     }
  
@@ -268,7 +270,7 @@ void *alarm_thread (void *arg)
 
             while (next_thread != NULL) {
                 //if display_thread is same type and hass less than 2 alarms
-                if (new_alarm->type == next_thread->type && next_thread -> num_of_alarms < 2) {
+                if (next_thread->display_thread != NULL && new_alarm->type == next_thread->type && next_thread -> num_of_alarms < 2) {
                     
 
                     if(next_thread -> display_alarms[1] ==NULL)
@@ -292,14 +294,16 @@ void *alarm_thread (void *arg)
                 
              
                 
-                if ((*last_thread) != NULL)
-                (*last_thread)->link = new_display_thread;
-                else {
-                    display_threads = new_display_thread;
-                }
-                new_display_thread -> num_of_alarms = new_display_thread -> num_of_alarms +1;
+               
+
+                *last_thread = new_display_thread;
+
+              
+                new_display_thread-> end_of_life = 0;
+                new_display_thread -> num_of_alarms = new_display_thread -> num_of_alarms + 1;
                 new_display_thread -> type = new_alarm->type;
                 new_display_thread -> display_alarms[0] = new_alarm;
+
                 status = pthread_create (&new_display_thread->display_thread, NULL, display_thread, new_display_thread);
                 if (status != 0)
                 err_abort (status, "Create display thread");
@@ -308,29 +312,7 @@ void *alarm_thread (void *arg)
                 
             }
            
-           //Check for dead display threads
-           last_thread = &display_threads;
-           next_thread = *last_thread;
-
-           while (next_thread != NULL) {
-                //if display_thread is dead, remove from list. 
-                if (next_thread->display_thread == NULL) {
-                    
-
-                    (*last_thread)->link = next_thread->link;
-
-                    display_t *temp = next_thread;
-                    next_thread = next_thread->link;
-                    free(temp);
-
-                 
-                    
-                    
-                    
-                }
-                last_thread = &next_thread->link;
-                next_thread = next_thread->link;
-            }
+           
 
             //after inserting new alarm, set new alarm pointer to null to signal to other display threads that they can use alarm list
             new_alarm = NULL;
@@ -358,11 +340,34 @@ void *alarm_thread (void *arg)
     }
 }
 
+int input_validator(const char *keyword, int user_arg ) {
+    //if input is valid, return flag that corresponds to the keyword
+    if((strcmp(keyword, "Cancel_Alarm") == 0) && (user_arg == 2)) {
+        return 1;
+    }
+    if((strcmp(keyword, "View_Alarms") == 0) && (user_arg == 1)) {
+        return 2;
+    }
+    if((strcmp(keyword, "Start_Alarm") == 0) && (user_arg == 5)) {
+        return 3;
+    }
+    if((strcmp(keyword, "Change_Alarm") == 0) && (user_arg == 5)) {
+        return 4;
+    }
+    //otherwise we return 1
+    return -1;
+}
+
 int main (int argc, char *argv[])
 {
     int status;
     int first;
+    int counter;
+    int user_arg;
+    char a_or_b = 'a';
     char line[128];
+    char keyword[13];
+    int flag_input;
     alarm_t *alarm, **last, *next;
     display_t *new, *next_thread, **last_thread;
     pthread_t thread;
@@ -389,7 +394,10 @@ int main (int argc, char *argv[])
          * (%64[^\n]), consisting of up to 64 characters
          * separated from the seconds by whitespace.
          */
-        if (sscanf (line, "%[^()](%d): T%d %d %128[^\n]", 
+        //user_arg = sscanf(line, "%[^(\n](%d): T%s %d %128[^\n]", keyword, &alarm->id, alarm->type, &alarm->seconds, alarm->message);
+        //flag_input = input_validator(keyword, user_arg);
+
+        if (sscanf (line, "%[^(\n](%d): T%s %d %128[^\n]", 
             alarm->req, &alarm->id, &alarm->type, &alarm->seconds, alarm->message) < 1) {
             fprintf (stderr, "Bad command\n");
             free (alarm);
@@ -401,6 +409,53 @@ int main (int argc, char *argv[])
             
             alarm->time = time (NULL) + alarm->seconds;
             alarm -> cancelled = 0;
+
+            //Check for dead display threads
+           last_thread = &display_threads;
+           next_thread = *last_thread;
+
+           while (next_thread != NULL) {
+                //if display_thread is dead, remove from list. 
+                if (next_thread->end_of_life == 1) {
+
+
+                    *last_thread = next_thread->link;
+
+                    display_t *temp = next_thread;
+                    next_thread = next_thread->link;
+                    free(temp);
+
+                }
+
+                last_thread = &next_thread->link;
+                next_thread = next_thread->link;
+            }
+
+            //Main thread now responsible for alarm removal
+
+            /*
+             * A3.2.4. For each alarm in the alarm list, if the specified number of n seconds has expired,
+             * then the main thread will remove that alarm from the alarm list, and it will print:
+             * “Alarm(<alarm_id>): Alarm Expired at <time>: Alarm Removed From Alarm List ”,
+             * where <time> is the actual time at which this was printed (<time> is expressed as the
+             * number of seconds from the Unix Epoch Jan 1 1970 00:00.
+            */
+            last = &alarm_list;
+            next = *last;
+
+            while (next != NULL) {
+
+                if (next->time <= time(NULL)) {
+
+                    (*last) = next->link;
+                    free(next);
+                    break;
+                }
+
+                last = &next->link;
+                next = next->link;
+            }
+
             /*
              * A.3.2.1. For each valid Start_Alarm request received, the main thread will insert the
              * corresponding alarm with the specified Alarm_ID into the alarm list, in which all the
@@ -527,34 +582,40 @@ int main (int argc, char *argv[])
              *  list that the alarm thread has assigned to each display thread, in the following format:
             */
              if(strcmp(alarm->req, "View_Alarms") == 0){
-                
-                printf("View Alarms at %ld: <time>:", time(NULL));
-             }
-            
-            //Main thread now responsible for alarm removal
+             printf("View Alarms at %ld: <%ld>:\n", time(NULL), time(NULL));
+               last_thread = &display_threads;
+               next_thread = *last_thread;
+               counter = 1;
 
-            /*
-             * A3.2.4. For each alarm in the alarm list, if the specified number of n seconds has expired,
-             * then the main thread will remove that alarm from the alarm list, and it will print:
-             * “Alarm(<alarm_id>): Alarm Expired at <time>: Alarm Removed From Alarm List ”,
-             * where <time> is the actual time at which this was printed (<time> is expressed as the
-             * number of seconds from the Unix Epoch Jan 1 1970 00:00.
-            */
-            last = &alarm_list;
-            next = *last;
+              while (next_thread != NULL) {
+                //if display_thread is same type and hass less than 2 alarms
+                if (next_thread->display_thread != NULL) {
 
-            while (next != NULL) {
+                    printf("%d. Display Thread <%ld> Assigned:\n", counter, next_thread->display_thread);
 
-                if (next->time <= time(NULL)) {
+                    if (next_thread -> display_alarms[0] != NULL){
+                    printf("%d%c. Alarm(%d): %d %ld %s\n", counter, a_or_b, next_thread->display_alarms[0]->id, next_thread->display_alarms[0]->type, next_thread->display_alarms[0]->seconds, next_thread->display_alarms[0]->message);
+                    a_or_b = 'b';
+                    }
+
+                    if (next_thread -> display_alarms[1] != NULL){
+                    printf("%d%c. Alarm(%d): %d %ld %s\n", counter, a_or_b, next_thread->display_alarms[1]->id, next_thread->display_alarms[1]->type, next_thread->display_alarms[1]->seconds, next_thread->display_alarms[1]->message);
+                    }
+
+                    a_or_b = 'a';
+                    counter= counter +1;
+
                     
-                    (*last) = next->link;
-                    free(next);  
-                    break;
                 }
 
-                last = &next->link;
-                next = next->link;
-            }
+                last_thread = &next_thread->link;
+                next_thread = next_thread->link;
+              }
+                counter = 1;
+             }
+
+
+
             
             
 
