@@ -13,6 +13,7 @@
 #include <pthread.h>
 #include <time.h>
 #include "errors.h"
+#include <sys/select.h>
 
 /*
  * The "alarm" structure now contains the time_t (time since the
@@ -44,7 +45,7 @@ typedef struct display_thread_node{
     long thread_address; // address of display thread for main thread access
     pthread_t display_thread; // thread responsible for displaye
     struct alarm_tag *display_alarms[2]; //list of display alarms
-    struct display_t *link; //link to next display thread in list
+    struct display_thread_node *link; //link to next display thread in list
 
 } display_t;
 
@@ -68,7 +69,7 @@ void *display_thread (void *arg){
   int type;  
   int* num_of_alarms = malloc(sizeof(int));
   int status;
-  struct timeval timeout;
+  struct timespec timeout;
   
   time_t current_0, start_0, current_1, start_1; 
   display_t* thread_data = (display_t*)arg;
@@ -83,9 +84,7 @@ void *display_thread (void *arg){
             if (status != 0)
             err_abort (status, "Lock mutex");
   while (1){
-     timeout.tv_sec = 0;
-     timeout.tv_usec = 500000;
-
+     timespec_get(&timeout, TIME_UTC + 5); // get current time + 5 seconds
     
     //Originally planned to have this thread lock alarm mutex and run whenever no new alarm is added, but this prevents
     //main thread from running
@@ -283,7 +282,7 @@ void *alarm_thread (void *arg)
 
             while (next_thread != NULL) {
                 //if display_thread is same type and hass less than 2 alarms
-                if (next_thread->display_thread != NULL && strcmp(new_alarm->type, next_thread->type) == 0 && next_thread -> num_of_alarms < 2) {
+                if (pthread_equal(next_thread->display_thread, (pthread_t) NULL) == 0 && strcmp(new_alarm->type, next_thread->type) == 0 && next_thread -> num_of_alarms < 2) {
                     
 
                     if(next_thread -> display_alarms[1] ==NULL)
@@ -618,7 +617,7 @@ int main (int argc, char *argv[])
 
               while (next_thread != NULL) {
                 //if display_thread is same type and hass less than 2 alarms
-                if (next_thread->display_thread != NULL) {
+                if (pthread_equal(next_thread->display_thread, (pthread_t) NULL) == 0) {
 
                     printf("%d. Display Thread <%lu> Assigned:\n", counter, next_thread->thread_address);
 
