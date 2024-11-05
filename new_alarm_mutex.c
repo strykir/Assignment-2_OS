@@ -520,7 +520,7 @@ int main (int argc, char *argv[])
             }
             
             now = time(NULL);
-            strftime (timeString,80,"%D %I:%M%p",localtime(&now));
+            strftime (timeString,80,"%D %I:%M:%S %p",localtime(&now));
 
             printf("Alarm(%d) Inserted by Main Thread (%lu) Into Alarm List at <%s>: %d %s \n", alarm->id, (unsigned long)pthread_self(), timeString, alarm->seconds, alarm->message);
             
@@ -561,7 +561,7 @@ int main (int argc, char *argv[])
                 next = next->link;
             }
             now = time(NULL);
-            strftime (timeString,80,"%D %I:%M%p",localtime(&now));
+            strftime (timeString,80,"%D %I:%M:%S %p",localtime(&now));
 
             printf("Alarm(%d) Changed at %s: %s %d %s \n", next->id, timeString, next->type, next->seconds, next->message);
             
@@ -592,7 +592,7 @@ int main (int argc, char *argv[])
                     *last = next->link;
 
                     now = time(NULL);
-                    strftime (timeString,80,"%D %I:%M%p",localtime(&now));
+                    strftime (timeString,80,"%D %I:%M:%S %p",localtime(&now));
 
                     printf("Alarm(%d) cancelled at %s: %s %d %s \n", next->id, timeString, next->type, next->seconds, next->message);
                     next -> cancelled = 1;
@@ -626,7 +626,7 @@ int main (int argc, char *argv[])
              if(flag_input == 2){
 
              now = time(NULL);
-             strftime (timeString,80,"%D %I:%M%p",localtime(&now));
+             strftime (timeString,80,"%D %I:%M:%S %p",localtime(&now));
                 
              printf("View Alarms at %s: <%s>:\n", timeString, timeString);
                last_thread = &display_threads;
@@ -698,7 +698,7 @@ int main (int argc, char *argv[])
                     removed_alarms = 1;
 
                     now = time(NULL);
-                    strftime (timeString,80,"%D %I:%M%p",localtime(&now));
+                    strftime (timeString,80,"%D %I:%M:%S %p",localtime(&now));
 
                     printf("Alarm(%d): Alarm Expired at <%s>: Alarm Removed From Alarm List\n", next->id, timeString);
                     *last = next->link;        
