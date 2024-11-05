@@ -70,6 +70,7 @@ void *display_thread (void *arg){
   int* num_of_alarms = malloc(sizeof(int));
   int status;
   struct timespec timeout;
+  char timeString[80];
   
   time_t current_0, start_0, current_1, start_1; 
   display_t* thread_data = (display_t*)arg;
@@ -85,6 +86,10 @@ void *display_thread (void *arg){
             err_abort (status, "Lock mutex");
   while (1){
      timespec_get(&timeout, TIME_UTC + 5); // get current time + 5 seconds
+
+     // get current time string
+     time(&current_0);
+     strftime (timeString,80,"%D %I:%M:%S %p",localtime(&current_0));
     
     //Originally planned to have this thread lock alarm mutex and run whenever no new alarm is added, but this prevents
     //main thread from running
@@ -92,7 +97,7 @@ void *display_thread (void *arg){
     
      
     if(thread_data->display_alarms[0] == NULL && thread_data->display_alarms[1] == NULL){
-      printf("Display Thread Terminated (%lu) at %ld \n", (unsigned long)pthread_self(), time(NULL));
+      printf("Display Thread Terminated (%lu) at %s \n", (unsigned long)pthread_self(), timeString);
       thread_data->end_of_life = 1;
       status = pthread_mutex_unlock (&alarm_expiration_mutex);
             if (status != 0)
@@ -106,7 +111,7 @@ void *display_thread (void *arg){
        */ 
      
       if(thread_data->display_alarms[0] != NULL && strcmp(thread_data->display_alarms[0]->type, thread_data->type) != 0){ 
-        printf("Alarm(%d) Changed Type; Display Thread (%lu) Stopped Printing Alarm Message at %ld: %s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
+        printf("Alarm(%d) Changed Type; Display Thread (%lu) Stopped Printing Alarm Message at %s: %s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), timeString, thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
         thread_data->display_alarms[0] = NULL;
         num_of_alarms = num_of_alarms -1 ;
       }  
@@ -117,7 +122,7 @@ void *display_thread (void *arg){
       */
 
       if(thread_data->display_alarms[0] != NULL && thread_data->display_alarms[0]->cancelled == 1){
-        printf("Alarm(%d) Cancelled; Display Thread (%lu) Stopped Printing Alarm Message at %ld: %s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
+        printf("Alarm(%d) Cancelled; Display Thread (%lu) Stopped Printing Alarm Message at %s: %s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), timeString, thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
         free(thread_data->display_alarms[0]);
         thread_data->display_alarms[0] = NULL;
         num_of_alarms = num_of_alarms -1 ;
@@ -144,7 +149,7 @@ void *display_thread (void *arg){
             }  
 
             if(thread_data->display_alarms[0] != NULL && thread_data->display_alarms[0]->time < time(NULL)){
-            printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %ld: T%s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
+            printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %s: T%s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), timeString, thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
             free(thread_data->display_alarms[0]);
             thread_data->display_alarms[0] = NULL;
             num_of_alarms = num_of_alarms -1 ;
@@ -152,7 +157,7 @@ void *display_thread (void *arg){
 
             if(thread_data->display_alarms[1] != NULL && thread_data->display_alarms[1]->time < time(NULL)){
             //remove alarm from num_of_alarms           
-            printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %ld: T%s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
+            printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %s: T%s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), timeString, thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
             free(thread_data->display_alarms[1]);
             thread_data->display_alarms[1] = NULL;
             num_of_alarms = num_of_alarms -1 ;
@@ -169,7 +174,7 @@ void *display_thread (void *arg){
        */
         time(&current_0);
         if (difftime(current_0, start_0) >= 5.0){
-         printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %ld: T%s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
+         printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %s: T%s %d %s \n", thread_data->display_alarms[0]->id, (unsigned long)pthread_self(), timeString, thread_data->display_alarms[0]->type, thread_data->display_alarms[0]->seconds, thread_data->display_alarms[0]->message);
          start_0 = current_0;
         }
    }
@@ -179,7 +184,7 @@ void *display_thread (void *arg){
        * alarm. Then the display thread will print:
        */ 
       if(thread_data->display_alarms[1] != NULL && strcmp(thread_data->display_alarms[1]->type,thread_data->type) != 0){
-        printf("Alarm(%d) Changed Type; Display Thread (%lu) Stopped Printing Alarm Message at %ld: %s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
+        printf("Alarm(%d) Changed Type; Display Thread (%lu) Stopped Printing Alarm Message at %s: %s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), timeString, thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
         thread_data->display_alarms[1] = NULL;
         num_of_alarms = num_of_alarms -1 ;
       }  
@@ -190,7 +195,7 @@ void *display_thread (void *arg){
       */
 
       if(thread_data->display_alarms[1] != NULL && thread_data->display_alarms[1]->cancelled == 1){
-        printf("Alarm(%d) Cancelled; Display Thread (%lu) Stopped Printing Alarm Message at %ld: %s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
+        printf("Alarm(%d) Cancelled; Display Thread (%lu) Stopped Printing Alarm Message at %s: %s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), timeString, thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
         free(thread_data->display_alarms[1]);
         thread_data->display_alarms[1] = NULL;
         num_of_alarms = num_of_alarms -1 ;
@@ -207,7 +212,7 @@ void *display_thread (void *arg){
        */
         time(&current_1);
         if (difftime(current_1, start_1) >= 5.0){
-         printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %ld: T%s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), time(NULL), thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
+         printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %s: T%s %d %s \n", thread_data->display_alarms[1]->id, (unsigned long)pthread_self(), timeString, thread_data->display_alarms[1]->type, thread_data->display_alarms[1]->seconds, thread_data->display_alarms[1]->message);
          start_1 = current_1;
         }
     }
@@ -389,6 +394,7 @@ int main (int argc, char *argv[])
     struct timeval timeout;
     int returned_value;
     int removed_alarms = 0;
+    char timeString[80];
     
     
     status = pthread_create (
@@ -513,7 +519,10 @@ int main (int argc, char *argv[])
                 alarm->link = NULL;
             }
             
-            printf("Alarm(%d) Inserted by Main Thread (%lu) Into Alarm List at <%ld>: %d %s \n", alarm->id, (unsigned long)pthread_self(), time (NULL), alarm->seconds, alarm->message);
+            now = time(NULL);
+            strftime (timeString,80,"%D %I:%M%p",localtime(&now));
+
+            printf("Alarm(%d) Inserted by Main Thread (%lu) Into Alarm List at <%s>: %d %s \n", alarm->id, (unsigned long)pthread_self(), timeString, alarm->seconds, alarm->message);
             
             new_alarm = alarm;
              
@@ -551,8 +560,10 @@ int main (int argc, char *argv[])
                 last = &next->link;
                 next = next->link;
             }
+            now = time(NULL);
+            strftime (timeString,80,"%D %I:%M%p",localtime(&now));
 
-            printf("Alarm(%d) Changed at %ld: %s %d %s \n", next->id, time(NULL), next->type, next->seconds, next->message);
+            printf("Alarm(%d) Changed at %s: %s %d %s \n", next->id, timeString, next->type, next->seconds, next->message);
             
             new_alarm = next;
             //signal alarm_cond because alarm changed
@@ -579,7 +590,11 @@ int main (int argc, char *argv[])
                     
                     
                     *last = next->link;
-                    printf("Alarm(%d) cancelled at %ld: %s %d %s \n", next->id, time(NULL), next->type, next->seconds, next->message);
+
+                    now = time(NULL);
+                    strftime (timeString,80,"%D %I:%M%p",localtime(&now));
+
+                    printf("Alarm(%d) cancelled at %s: %s %d %s \n", next->id, timeString, next->type, next->seconds, next->message);
                     next -> cancelled = 1;
                     free(alarm);
                     //free(next);
@@ -609,8 +624,11 @@ int main (int argc, char *argv[])
              *  list that the alarm thread has assigned to each display thread, in the following format:
             */
              if(flag_input == 2){
+
+             now = time(NULL);
+             strftime (timeString,80,"%D %I:%M%p",localtime(&now));
                 
-             printf("View Alarms at %ld: <%ld>:\n", time(NULL), time(NULL));
+             printf("View Alarms at %s: <%s>:\n", timeString, timeString);
                last_thread = &display_threads;
                next_thread = *last_thread;
                counter = 1;
@@ -678,7 +696,11 @@ int main (int argc, char *argv[])
                 if (next->time <= time(NULL)) {
                      
                     removed_alarms = 1;
-                    printf("Alarm(%d): Alarm Expired at <%ld>: Alarm Removed From Alarm List\n", next->id, time(NULL));
+
+                    now = time(NULL);
+                    strftime (timeString,80,"%D %I:%M%p",localtime(&now));
+
+                    printf("Alarm(%d): Alarm Expired at <%s>: Alarm Removed From Alarm List\n", next->id, timeString);
                     *last = next->link;        
                     next = next->link;
                     last = &next->link;
